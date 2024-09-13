@@ -1,42 +1,73 @@
 import boto3
+import json
+import time
 
 sagemaker = boto3.client('sagemaker')
 
-response = sagemaker.create_processing_job(
-    ProcessingJobName='my-processing-job',
-    ProcessingInputs=[
-        {
-            'InputName': 'data',
-            'S3Input': {
-                'S3Uri': 's3://your-bucket/path-to-your-input-data',
-                'LocalPath': '/opt/ml/processing/input',
-                'S3DataType': 'S3Prefix',
-                'S3InputMode': 'File',
-            }
-        }
-    ],
-    ProcessingOutputConfig={
-        'Outputs': [
-            {
-                'OutputName': 'output',
-                'S3Output': {
-                    'S3Uri': 's3://your-bucket/path-to-your-output',
-                    'LocalPath': '/opt/ml/processing/output',
-                    'S3UploadMode': 'EndOfJob'
+def lambda_handler(event, context):
+    try:
+        # Extract parameters from the event object if necessary
+        input_s3_uri = "s3://ml-training-flow-sgm-pj-input/input-data/"
+        output_s3_uri = "s3://ml-training-flow-sgm-pj-output/output-data/"
+        role_arn = "arn:aws:iam::649999766497:role/service-role/AmazonSageMaker-ExecutionRole-20240910T110249"
+
+        # Generate a unique job name using timestamp or UUID
+        job_name = "ml-training-flow-sgm-pj-" + str(int(time.time()))
+        
+        # Create the SageMaker processing job
+        response = sagemaker.create_processing_job(
+            ProcessingJobName=job_name,
+            ProcessingInputs=[
+                {
+                    'InputName': 'data',
+                    'S3Input': {
+                        'S3Uri': input_s3_uri,
+                        'LocalPath': '/opt/ml/processing/input-data',
+                        'S3DataType': 'S3Prefix',
+                        'S3InputMode': 'File',
+                    }
                 }
-            }
-        ]
-    },
-    ProcessingResources={
-        'ClusterConfig': {
-            'InstanceCount': 1,
-            'InstanceType': 'ml.m5.xlarge',
-            'VolumeSizeInGB': 10
-           }
-       },
-    AppSpecification={
-        'ImageUri': 'your-docker-image-uri',
-        'ContainerEntrypoint': ['python3', 'your_script.py']
-    },
-    RoleArn='your-sagemaker-role-arn'
-)
+            ],
+            ProcessingOutputConfig={
+                'Outputs': [
+                    {
+                        'OutputName': 'output',
+                        'S3Output': {
+                            'S3Uri': output_s3_uri,
+                            'LocalPath': '/opt/ml/processing/output-data',
+                            'S3UploadMode': 'EndOfJob'
+                        }
+                    }
+                ]
+            },
+            ProcessingResources={
+                'ClusterConfig': {
+                    'InstanceCount': 1,
+                    'InstanceType': 'ml.t3.medium',
+                    'VolumeSizeInGB': 1
+                }
+            },
+            AppSpecification={
+                'ImageUri': '649999766497.dkr.ecr.us-east-1.amazonaws.com/epwery/ml-training-flow:1.0.0',
+                'ContainerEntrypoint': ['bash', '-c'],
+                'ContainerArguments': ['git pull && jupyter nbconvert --to script notebook.ipynb && python training_flow/sgm_proc_job_docker/test_script.py']
+            },
+            RoleArn=role_arn
+        )
+
+        # Log the response
+        print(f"Processing job created successfully: {response}")
+        
+        # Return success response
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Processing job created successfully'),
+            'processingJobArn': response['ProcessingJobArn']
+        }
+
+    except Exception as e:
+        print(f"Error creating processing job: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f"Error creating processing job: {str(e)}")
+        }
