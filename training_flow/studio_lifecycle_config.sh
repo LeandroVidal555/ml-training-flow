@@ -24,6 +24,7 @@ if [ ! -d "$FOLDER_NAME" ]; then
   echo 'COMMAND: git clone $REPO_URL'
   git clone $REPO_URL
 else
+  cd $FOLDER_NAME
   git pull
   echo "Directory '$FOLDER_NAME' already exists. Skipping clone."
 fi
