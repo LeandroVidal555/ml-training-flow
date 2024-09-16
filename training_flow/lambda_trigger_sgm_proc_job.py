@@ -50,7 +50,7 @@ def lambda_handler(event, context):
             AppSpecification={
                 'ImageUri': '649999766497.dkr.ecr.us-east-1.amazonaws.com/epwery/ml-training-flow:1.0.0',
                 'ContainerEntrypoint': ['bash', '-c'],
-                'ContainerArguments': ['git pull && jupyter nbconvert --to script notebook.ipynb && python training_flow/sgm_proc_job_docker/test_script.py']
+                'ContainerArguments': ['git pull && ./training_flow/sgm_proc_job_docker/pj_execute.sh']
             },
             RoleArn=role_arn
         )
